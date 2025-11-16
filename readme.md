@@ -50,22 +50,22 @@ Handles spool directory for disconnected mode.
 
 ```
 InSOC/
-  backend/
-    node_modules
-    public/
-      ui.html
-    init_db.js
-    server.js
-    package.json
-    package-lock.json
-    
-  agent/
-    agent.py
-  
-  setup.sh -- ⚠ Only Run Once For Setup
-  start.sh -- Use To Start The SOC
-
-  readme.md
+├── backend/
+│   ├── node_modules
+│   ├── public/
+│   │    └── ui.html
+│   ├── init_db.js
+│   ├── server.js
+│   ├── package.json
+│   ├── package-lock.json
+│
+├── agent/
+│   └── agent.py
+│ 
+├── setup.sh -- ⚠ Only Run Once For Setup
+├── start.sh -- Use To Start The SOC
+│
+└── readme.md
 ```
 
 ## Environment Variables (NOT SET IN THIS EDITION)
