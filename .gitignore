@@ -1,0 +1,84 @@
+# -------------------------
+# NODE / EXPRESS BACKEND
+# -------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-store/
+
+# Logs
+*.log
+logs/
+backend/server.log
+
+# Env
+.env
+.env.*
+*.env
+
+# Build
+dist/
+build/
+.cache/
+
+# SQLite DB files
+events.sqlite
+events.sqlite-shm
+events.sqlite-wal
+events.sqlite-journal
+commands.sqlite
+commands.sqlite-journal
+
+# -------------------------
+# PYTHON AGENT
+# -------------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Python virtual envs
+venv/
+env/
+.venv/
+
+# Spool directories
+var/spool/log_collector/
+var/spool/cmd_collector/
+spool/
+*/spool/*
+*.spool
+
+# -------------------------
+# SYSTEM / OS
+# -------------------------
+.DS_Store
+Thumbs.db
+
+# -------------------------
+# PROJECT SPECIFIC
+# -------------------------
+
+# Agent logs
+agent.log
+cmd_collector.log
+*/cmd_collector.log
+
+# Generated batches
+batch-*.json
+
+# UI builds
+public/*.map
+
+# Backup files
+*.bak
+*.backup
+*.old
+*.tmp
+
+# Editor junk
+.vscode/
+.idea/
+*.swp
+*.swo
