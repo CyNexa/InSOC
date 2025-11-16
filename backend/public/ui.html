@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SOC Live — Logs</title>
+
+  <!-- Tailwind Play CDN (quick) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- socket.io client -->
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    ::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #1d293d;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #41495b;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #5a657e;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-900 text-slate-100 antialiased">
+  <div class="max-w-6xl mx-auto p-6">
+    <header class="flex items-start justify-between gap-4 mb-4">
+      <div>
+        <h1 class="text-2xl font-semibold">InSOC</h1>
+        <p class="text-sm text-slate-400">Realtime logs · Newest at top</p>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <input id="searchInput" type="search" placeholder="Filter text / IP / user"
+          class="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm focus:ring-2 focus:ring-sky-500" />
+        <button id="clearBtn" class="px-3 py-2 text-sm rounded-lg bg-sky-600 hover:bg-sky-500">Clear</button>
+        <button id="fetchMore" class="px-3 py-2 text-sm rounded-lg bg-slate-700 hover:bg-slate-600">Load older</button>
+        <button id="deletePast" class="px-3 py-2 text-sm rounded-lg bg-rose-600 hover:bg-rose-500">Delete past
+          logs</button>
+        <div id="conn" class="ml-2 text-sm text-slate-400">○ Disconnected</div>
+      </div>
+    </header>
+
+    <main class="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-6">
+      <!-- left panel -->
+      <aside class="space-y-4">
+        <div class="p-4 rounded-lg bg-slate-800 border border-slate-700">
+          <div class="text-sm text-slate-400">Status</div>
+          <div id="statusTxt" class="mt-1 font-medium">waiting</div>
+        </div>
+
+        <div class="p-4 rounded-lg bg-slate-800 border border-slate-700">
+          <div class="text-sm text-slate-400">Filters</div>
+          <div class="mt-3 flex flex-col gap-2 text-sm">
+            <label class="flex items-center gap-2"><input id="f_info" type="checkbox" checked class="accent-sky-500" />
+              Info</label>
+            <label class="flex items-center gap-2"><input id="f_warn" type="checkbox" checked
+                class="accent-amber-400" /> Warn</label>
+            <label class="flex items-center gap-2"><input id="f_err" type="checkbox" checked class="accent-rose-400" />
+              Err</label>
+          </div>
+        </div>
+
+        <div class="p-4 rounded-lg bg-slate-800 border border-slate-700">
+          <div class="text-sm text-slate-400">Info</div>
+          <div class="mt-2 text-sm text-slate-300">Showing newest logs at the top. Use <kbd
+              class="px-2 py-0.5 bg-slate-700 rounded">Load older</kbd> to append older logs below.</div>
+        </div>
+      </aside>
+
+      <!-- right: live feed -->
+      <section class="flex flex-col">
+        <div id="list" class="space-y-3 overflow-auto rounded-lg p-3 bg-slate-900 border border-slate-800"
+          style="height:calc(100vh - 160px)" aria-live="polite" role="log">
+          <!-- event cards inserted here (newest FIRST) -->
+        </div>
+        <div class="mt-3 text-sm text-slate-400">Showing newest at top — initial load: last 100 logs.</div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      const BACKEND = window.location.hostname === 'localhost' ? 'http://localhost:5000' : (location.protocol + '//' + location.host);
+      const socket = io(BACKEND, { reconnectionDelayMax: 5000, transports: ["websocket", "polling"] });
+
+      // UI refs
+      const list = document.getElementById('list');
+      const conn = document.getElementById('conn');
+      const statusTxt = document.getElementById('statusTxt');
+      const searchInput = document.getElementById('searchInput');
+      const fetchMoreBtn = document.getElementById('fetchMore');
+      const clearBtn = document.getElementById('clearBtn');
+      const deletePastBtn = document.getElementById('deletePast');
+      const f_info = document.getElementById('f_info');
+      const f_warn = document.getElementById('f_warn');
+      const f_err = document.getElementById('f_err');
+
+      let lastSeenId = Number(localStorage.getItem('lastSeenId') || 0);
+      let paused = false;
+      let incomingBuffer = [];
+
+      // render event card: title top (short), description below (only if different), file, timeline bottom
+      function renderEventCard(e) {
+        // severity auto-detect
+        let sev = 'info';
+        const m = String(e.msg || '').toLowerCase();
+        if ((e.severity || '').toLowerCase()) sev = e.severity.toLowerCase();
+        else if (m.includes('fail') || m.includes('error') || m.includes('denied')) sev = 'err';
+        else if (m.includes('warn') || m.includes('invalid') || m.includes('sudo')) sev = 'warn';
+
+        // filter severity toggles
+        if ((sev === 'info' && !f_info.checked) || (sev === 'warn' && !f_warn.checked) || (sev === 'err' && !f_err.checked)) return null;
+
+        const filter = (searchInput.value || '').trim().toLowerCase();
+        if (filter) {
+          const hay = ((e.msg || '') + ' ' + (e.source || '') + ' ' + JSON.stringify(e.meta || {})).toLowerCase();
+          if (!hay.includes(filter)) return null;
+        }
+
+        // build DOM
+        const card = document.createElement('article');
+        card.className = "bg-slate-800 border border-slate-700 rounded-lg p-4 shadow-sm";
+        if (e.id) card.dataset.id = String(e.id);
+        if (e.ts) card.dataset.ts = String(e.ts);
+
+        // TITLE = first meaningful line of message (no timestamp, no timezone, no repeats)
+        let rawLine = (e.msg || '').split('\n')[0].trim();
+
+        // strip timestamps like "2025-11-16T12:55:01.122524+00:00"
+        rawLine = rawLine.replace(/^\d{4}-\d{2}-\d{2}[^ ]*\s*/, '').trim();
+
+        // short title version
+        const titleText = rawLine.slice(0, 80) || "Log";
+
+        // Full description
+        const fullMsg = (e.msg || '').trim();
+
+        // Show description only if it’s significantly longer than title
+        const showDescription = fullMsg.length > (titleText.length + 10);
+
+
+        const time = new Date((e.ts || Date.now() / 1000) * 1000).toLocaleString();
+
+        // severity badge backgrounds (visible)
+        const sevClass = sev === 'err' ? 'bg-rose-700 text-rose-100' : (sev === 'warn' ? 'bg-amber-700 text-amber-100' : 'bg-sky-700 text-sky-100');
+
+        card.innerHTML = `
+            <div class="flex items-start justify-between gap-4">
+              <h3 class="text-slate-100 font-semibold text-sm">${escapeHtml(titleText)}</h3>
+              <div class="px-2 py-1 text-xs font-semibold rounded ${sevClass}">${sev.toUpperCase()}</div>
+            </div>
+
+            ${showDescription ? `<div class="mt-2 text-slate-200 text-sm whitespace-pre-wrap">${escapeHtml(fullMsg)}</div>` : ''}
+
+            <div class="mt-3 text-xs text-slate-400">file: <span class="text-slate-200">${escapeHtml(e.source || 'unknown')}</span></div>
+
+            <div class="mt-3 flex items-center justify-between text-xs text-slate-400">
+              <div class="flex items-center gap-2">
+                ${e.meta && e.meta.ip ? `<span class="px-2 py-0.5 bg-slate-700 rounded text-xs">${escapeHtml(e.meta.ip)}</span>` : ''}
+                ${e.meta && e.meta.user ? `<span class="px-2 py-0.5 bg-slate-700 rounded text-xs">user:${escapeHtml(e.meta.user)}</span>` : ''}
+              </div>
+              <div>${escapeHtml(time)}</div>
+            </div>
+          `;
+        return card;
+      }
+
+      function escapeHtml(s) { return String(s || '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;'); }
+
+      // add live event to TOP (newest first)
+      function addLiveEvent(e) {
+        lastSeenId = Math.max(lastSeenId, Number(e.id || 0));
+        localStorage.setItem('lastSeenId', String(lastSeenId));
+        const card = renderEventCard(e);
+        if (!card) return;
+        list.insertBefore(card, list.firstChild);
+        // cap nodes to avoid DOM bloat
+        while (list.children.length > 1200) list.removeChild(list.lastChild);
+      }
+
+      // append older events to bottom (older logs)
+      function appendOlderEvents(rows) {
+        rows.sort((a, b) => Number(a.id) - Number(b.id));
+        rows.forEach(r => {
+          const card = renderEventCard(r);
+          if (!card) return;
+          list.appendChild(card);
+        });
+      }
+
+      // initial load: last 100 logs (newest-first from server)
+      async function initialLoad() {
+        setStatus('loading last 100 logs...');
+        try {
+          const url = `${BACKEND}/events?limit=100`;
+          const r = await fetch(url);
+          const rows = await r.json();
+          // server returns newest-first (id DESC).
+          // To keep newest at top when using prepend, iterate oldest->newest:
+          rows.reverse().forEach(row => addLiveEvent(row));
+        } catch (e) {
+          console.error('initial load failed', e);
+        } finally {
+          setStatus('connected');
+        }
+      }
+
+      // socket handling
+      socket.on('connect', () => {
+        conn.textContent = '● Connected';
+        conn.style.color = 'lime'; 
+        socket.emit('hello', { lastSeenId });
+      });
+
+      socket.on('event', (ev) => {
+        if (paused) { incomingBuffer.push(ev); return; }
+        addLiveEvent(ev);
+      });
+
+      socket.on('disconnect', () => {
+        conn.textContent = '○ disconnected';
+        conn.style.color = '#90a1b9';
+      });
+
+      // Load older: use before_id to fetch older events
+      fetchMoreBtn.addEventListener('click', async () => {
+        fetchMoreBtn.disabled = true;
+        fetchMoreBtn.textContent = 'Loading...';
+        try {
+          const bottom = list.lastElementChild;
+          const oldestId = bottom && bottom.dataset && bottom.dataset.id ? Number(bottom.dataset.id) : 0;
+
+          if (!oldestId) {
+            // if no events yet, initialLoad should run
+            await initialLoad();
+            return;
+          }
+
+          const url = `${BACKEND}/events?before_id=${oldestId}&limit=100`;
+          const r = await fetch(url);
+          if (!r.ok) throw new Error('fetch failed ' + r.status);
+          const rows = await r.json();
+          if (!rows.length) {
+            alert('No older events found');
+          } else {
+            appendOlderEvents(rows);
+          }
+        } catch (err) {
+          console.error(err);
+          alert('Failed to load older logs');
+        } finally {
+          fetchMoreBtn.disabled = false;
+          fetchMoreBtn.textContent = 'Load older';
+        }
+      });
+
+      // Delete past logs button: delete logs older than the oldest shown (or all if none)
+      deletePastBtn.addEventListener('click', async () => {
+        const confirmMsg = 'Delete logs older than the ones currently visible? This will remove them from the DB (irreversible). Confirm?';
+        if (!confirm(confirmMsg)) return;
+
+        // find oldest visible timestamp (bottom)
+        const bottom = list.lastElementChild;
+        let beforeTs = null;
+        if (bottom && bottom.dataset && bottom.dataset.ts) beforeTs = Number(bottom.dataset.ts);
+
+        try {
+          const payload = {};
+          if (beforeTs) payload.before_ts = beforeTs;
+          else payload.before_ts = Math.floor(Date.now() / 1000); // delete all up to now
+
+          const res = await fetch(`${BACKEND}/clear`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const j = await res.json();
+          if (!res.ok) throw new Error(j.error || 'clear failed');
+          // Remove deleted logs from the UI: delete nodes with ts < beforeTs
+          if (beforeTs) {
+            [...list.children].forEach(c => {
+              if (c.dataset && c.dataset.ts && Number(c.dataset.ts) < beforeTs) c.remove();
+            });
+          } else {
+            list.innerHTML = '';
+          }
+          alert(`Deleted ${j.deleted || 0} logs`);
+        } catch (err) {
+          console.error(err);
+          alert('Failed to delete logs: ' + err.message);
+        }
+      });
+
+      // clear local view
+      clearBtn.addEventListener('click', () => list.innerHTML = '');
+
+      // pause toggle: press P to toggle
+      let pausedState = false;
+      document.addEventListener('keydown', (e) => {
+        if (e.key.toLowerCase() === 'p') {
+          pausedState = !pausedState;
+          paused = pausedState;
+          statusTxt.textContent = paused ? 'paused' : 'connected';
+          if (!paused && incomingBuffer.length) {
+            incomingBuffer.forEach(ev => addLiveEvent(ev));
+            incomingBuffer = [];
+          }
+        }
+      });
+
+      // search debounce: simple refresh using last 100 window
+      let timer = null;
+      searchInput.addEventListener('input', () => {
+        clearTimeout(timer);
+        timer = setTimeout(async () => {
+          list.innerHTML = '';
+          await initialLoad();
+        }, 350);
+      });
+
+      function setStatus(t) { statusTxt.textContent = t; }
+
+      // start
+      initialLoad();
+
+    })();
+  </script>
+</body>
+
+</html>
