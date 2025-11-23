@@ -1,0 +1,128 @@
+<%- include('layout', {
+  title: 'Server Blocks',
+  user: user,
+  body: `
+  <section class="space-y-6">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div>
+        <h1 class="text-2xl font-semibold text-slate-50">Server Blocks</h1>
+        <p class="text-sm text-slate-400 mt-1">
+          Firewall actions triggered for server-side activity (ufw on Ubuntu).
+        </p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="lg:col-span-1">
+        <div class="rounded-xl border border-slate-800 bg-slate-900/70 p-4 space-y-3">
+          <h2 class="text-sm font-medium text-slate-100">Create Block</h2>
+          <p class="text-xs text-slate-400">
+            Apply a soft (10 min) or hard (permanent) ufw deny rule for an IP.
+          </p>
+
+          <form method="POST" action="/blocks" class="space-y-3">
+            <input type="hidden" name="source_type" value="server" />
+
+            <div class="space-y-1">
+              <label class="block text-xs font-medium text-slate-300">IP Address</label>
+              <input
+                type="text"
+                name="ip"
+                required
+                class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+
+            <div class="space-y-1">
+              <label class="block text-xs font-medium text-slate-300">Block Type</label>
+              <select
+                name="block_type"
+                class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="SOFT">Soft (10 minutes)</option>
+                <option value="HARD">Hard (permanent)</option>
+              </select>
+            </div>
+
+            <div class="space-y-1">
+              <label class="block text-xs font-medium text-slate-300">Reason (optional)</label>
+              <input
+                type="text"
+                name="reason"
+                class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+
+            <button
+              type="submit"
+              class="w-full inline-flex items-center justify-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition"
+            >
+              Create Block
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <div class="lg:col-span-2">
+        <div class="rounded-xl border border-slate-800 bg-slate-900/70">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+            <h2 class="text-sm font-medium text-slate-100">Existing Blocks (Server)</h2>
+            <span class="text-xs text-slate-500">Latest 200 records</span>
+          </div>
+
+          <div class="overflow-x-auto">
+            <div class="scroll-y">
+              <table class="min-w-full text-sm text-left">
+                <thead class="bg-slate-900/90">
+                  <tr class="border-b border-slate-800 text-xs text-slate-400">
+                    <th class="px-3 py-2 whitespace-nowrap">IP</th>
+                    <th class="px-3 py-2 whitespace-nowrap">Type</th>
+                    <th class="px-3 py-2 whitespace-nowrap">Status</th>
+                    <th class="px-3 py-2 whitespace-nowrap">Created (IST)</th>
+                    <th class="px-3 py-2 whitespace-nowrap">Expires (IST)</th>
+                    <th class="px-3 py-2 whitespace-nowrap">Reason</th>
+                    <th class="px-3 py-2 whitespace-nowrap">Error</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800">
+                  ${
+                    blocks
+                      .map(b => {
+                        const c = toISTString(b.created_at);
+                        const e = b.expires_at ? toISTString(b.expires_at) : "";
+                        const statusClass =
+                          b.status === 'ACTIVE'  ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-500/40' :
+                          b.status === 'PENDING' ? 'bg-amber-500/20 text-amber-100 border border-amber-500/40' :
+                          b.status === 'FAILED'  ? 'bg-red-500/20 text-red-200 border border-red-500/40' :
+                                                   'bg-slate-800 text-slate-200 border border-slate-700/60';
+
+                        return `
+                          <tr class="hover:bg-slate-800/70 transition-colors">
+                            <td class="px-3 py-2 text-xs text-slate-200 whitespace-nowrap">${b.ip}</td>
+                            <td class="px-3 py-2 text-xs text-slate-200 whitespace-nowrap">${b.block_type}</td>
+                            <td class="px-3 py-2 whitespace-nowrap">
+                              <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${statusClass}">
+                                ${b.status}
+                              </span>
+                            </td>
+                            <td class="px-3 py-2 text-xs text-slate-300 whitespace-nowrap">${c}</td>
+                            <td class="px-3 py-2 text-xs text-slate-300 whitespace-nowrap">${e}</td>
+                            <td class="px-3 py-2 text-xs text-slate-200">${b.reason || ""}</td>
+                            <td class="px-3 py-2 text-xs text-red-200">${b.error || ""}</td>
+                          </tr>
+                        `;
+                      })
+                      .join("")
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script src="/js/blocks.js"></script>
+  `
+}) %>

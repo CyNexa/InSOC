@@ -1,0 +1,76 @@
+<%- include('layout', {
+  title: 'Server Logs',
+  user: user,
+  body: `
+  <section class="space-y-6">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div>
+        <h1 class="text-2xl font-semibold text-slate-50">Server Logs</h1>
+        <p class="text-sm text-slate-400 mt-1">
+          Latest activity collected from your Ubuntu server log files.
+        </p>
+      </div>
+      <div class="text-xs text-slate-500">
+        Showing latest 200 entries (newest on top).
+      </div>
+    </div>
+
+    <div class="rounded-xl border border-slate-800 bg-slate-900/70">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+        <h2 class="text-sm font-medium text-slate-100">Server Log Stream</h2>
+        <span class="text-xs text-slate-500">Source type: <span class="text-indigo-300">server</span></span>
+      </div>
+
+      <div class="overflow-x-auto">
+        <div class="scroll-y">
+          <table class="min-w-full text-sm text-left">
+            <thead class="bg-slate-900/90">
+              <tr class="border-b border-slate-800 text-xs text-slate-400">
+                <th class="px-3 py-2 whitespace-nowrap">Time (IST)</th>
+                <th class="px-3 py-2 whitespace-nowrap">Host</th>
+                <th class="px-3 py-2 whitespace-nowrap">File</th>
+                <th class="px-3 py-2 whitespace-nowrap">Severity</th>
+                <th class="px-3 py-2">Message</th>
+              </tr>
+            </thead>
+            <tbody id="server-logs-body" class="divide-y divide-slate-800">
+              ${
+                logs
+                  .map(l => {
+                    const t = toISTString(l.timestamp);
+                    const msg = (l.message || "").slice(0, 160);
+                    const sevClass =
+                      l.severity === 'CRITICAL' ? 'bg-red-500/20 text-red-200 border border-red-500/40' :
+                      l.severity === 'HIGH'     ? 'bg-orange-500/20 text-orange-200 border border-orange-500/40' :
+                      l.severity === 'MEDIUM'   ? 'bg-amber-500/20 text-amber-100 border border-amber-500/40' :
+                      l.severity === 'LOW'      ? 'bg-sky-500/20 text-sky-100 border border-sky-500/40' :
+                                                  'bg-slate-800 text-slate-200 border border-slate-700/60';
+
+                    return `
+                      <tr data-id="${l.id}" class="hover:bg-slate-800/70 transition-colors">
+                        <td class="px-3 py-2 text-xs text-slate-300 whitespace-nowrap">${t}</td>
+                        <td class="px-3 py-2 text-xs text-slate-300 whitespace-nowrap">${l.host || ""}</td>
+                        <td class="px-3 py-2 text-xs text-slate-400 whitespace-nowrap">${l.file_path || ""}</td>
+                        <td class="px-3 py-2 whitespace-nowrap">
+                          <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${sevClass}">
+                            ${l.severity}
+                          </span>
+                        </td>
+                        <td class="px-3 py-2 text-xs text-slate-200">
+                          <span title="${l.message}">${msg}</span>
+                        </td>
+                      </tr>
+                    `;
+                  })
+                  .join("")
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script src="/js/logs.js"></script>
+  `
+}) %>

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title><%= title || 'InSOC' %></title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/css/styles.css" />
+  <link rel="stylesheet" href="/css/extra.css" />
+  <script src="/socket.io/socket.io.js"></script>
+  <link rel="shortcut icon" href="favicon.png" type="image/x-icon">
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+  <% if (user) { %>
+  <header class="w-full border-b border-slate-800 bg-slate-900/80 backdrop-blur flex items-center justify-between px-4 py-3">
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center text-xs font-bold">
+        <img style="width: 20px; height: 20px;" src="favicon.png" alt="Icon">
+      </div>
+      <div class="flex flex-col">
+        <span class="font-semibold text-slate-100">InSOC</span>
+        <span class="text-xs text-slate-400">Realtime Server & Client Log Monitor</span>
+      </div>
+    </div>
+
+    <nav class="hidden md:flex items-center gap-4 text-sm">
+      <a href="/dashboard" class="hover:text-indigo-400 transition">Dashboard</a>
+      <a href="/server/logs" class="hover:text-indigo-400 transition">Server Logs</a>
+      <a href="/server/blocks" class="hover:text-indigo-400 transition">Server Blocks</a>
+      <a href="/server/commands" class="hover:text-indigo-400 transition">Server Commands</a>
+      <a href="/client/logs" class="hover:text-indigo-400 transition">Client Logs</a>
+      <a href="/client/blocks" class="hover:text-indigo-400 transition">Client Blocks</a>
+      <a href="/client/commands" class="hover:text-indigo-400 transition">Client Commands</a>
+    </nav>
+
+    <div class="flex items-center gap-3">
+      <!-- WebSocket indicator -->
+      <div id="ws-indicator" class="flex items-center gap-1 text-xs">
+        <span id="ws-indicator-dot" class="inline-block h-2.5 w-2.5 rounded-full bg-red-500"></span>
+        <span id="ws-indicator-text" class="text-slate-500">WS: offline</span>
+      </div>
+
+      <form method="POST" action="/logout" class="ml-1">
+        <button
+          type="submit"
+          class="inline-flex items-center gap-2 rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-100 hover:bg-slate-700 border border-slate-700 transition"
+        >
+          <span class="hidden sm:inline">Logout</span>
+          <span class="text-xs text-slate-400">(<%= user.username %>)</span>
+        </button>
+      </form>
+    </div>
+  </header>
+  <% } %>
+
+  <main class="flex-1 w-full max-w-7xl mx-auto px-3 md:px-6 py-4 md:py-6">
+    <%- body %>
+  </main>
+
+  <% if (user) { %>
+  <script>
+    (function () {
+      if (window._socSocketInitialized) return;
+      window._socSocketInitialized = true;
+
+      var dot = document.getElementById('ws-indicator-dot');
+      var text = document.getElementById('ws-indicator-text');
+
+      function setState(connected) {
+        if (!dot || !text) return;
+        if (connected) {
+          dot.classList.remove('bg-red-500');
+          dot.classList.add('bg-emerald-400');
+
+          text.textContent = 'WS: connected';
+          text.classList.remove('text-slate-500');
+          text.classList.add('text-emerald-300');
+        } else {
+          dot.classList.remove('bg-emerald-400');
+          dot.classList.add('bg-red-500');
+
+          text.textContent = 'WS: offline';
+          text.classList.remove('text-emerald-300');
+          text.classList.add('text-slate-500');
+        }
+      }
+
+      try {
+        var socket = io();
+        window._socSocket = socket;
+
+        setState(false);
+
+        socket.on('connect', function () {
+          setState(true);
+        });
+
+        socket.on('disconnect', function () {
+          setState(false);
+        });
+
+        socket.on('connect_error', function () {
+          setState(false);
+        });
+      } catch (e) {
+        console.error('Socket init error', e);
+        setState(false);
+      }
+    })();
+  </script>
+  <% } %>
+</body>
+</html>

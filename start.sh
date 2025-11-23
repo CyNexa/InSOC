@@ -1,15 +1,17 @@
 #!/bin/bash
-echo "🔥 Starting Python Agent..."
-sudo python3 agent/agent.py &
-PID1=$!
+trap "echo 'Shutting All Services'; kill 0" SIGINT
 
-echo "⚡ Starting Node Server..."
+echo "Starting Node Server..."
 cd backend
-sudo node server.js &
-PID2=$!
+node src/server.js &
+cd ..
 
-echo "🚀 Both services launched!"
-echo "Python Agent PID: $PID1"
-echo "Node Server PID: $PID2"
+echo "Starting Python Agents..."
+cd agent
+python3 server_agent.py &
+python3 firewall_agent.py &
+cd ..
+
+echo "All services launched! Ctrl+C to stop everything."
 
 wait
