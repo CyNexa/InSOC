@@ -1,0 +1,103 @@
+#!/usr/bin/env python3
+import sys
+import json
+import requests
+import socket
+import os
+
+CLIENTS_CONFIG = "/etc/insoc/clients.json"
+DEFAULT_PORT = 5050
+TIMEOUT = 5
+
+
+def load_clients():
+    try:
+        with open(CLIENTS_CONFIG, "r") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print(f"[claction] clients config not found: {CLIENTS_CONFIG}")
+        return {}
+    except json.JSONDecodeError as e:
+        print(f"[claction] invalid JSON in {CLIENTS_CONFIG}: {e}")
+        return {}
+
+
+def resolve_target(target, clients):
+    """
+    target can be:
+      - client name (key in clients.json)
+      - direct IP (contains '.')
+    returns (ip, action_key)
+    """
+    if target in clients:
+        return clients[target]["ip"], clients[target]["action_key"]
+
+    if "." in target:  # looks like IP
+        # use special entry if exists, or require env ACTION_KEY
+        key = os.getenv("CLACTION_DEFAULT_KEY", "")
+        if not key:
+            print("[claction] direct IP used but no CLACTION_DEFAULT_KEY set")
+        return target, key
+
+    print(f"[claction] unknown client: {target}")
+    return None, None
+
+
+def usage():
+    print("Usage:")
+    print("  claction <action> <client-name|ip> [reason...]")
+    print("")
+    print("Actions:")
+    print("  shutdown    - shutdown client")
+    print("  reboot      - reboot client")
+    print("  block-net   - block all network on client")
+    print("  unblock-net - unblock network (reset policies)")
+    print("  nuke        - change password + block net + log + shutdown")
+    print("")
+    sys.exit(1)
+
+
+def main():
+    if len(sys.argv) < 3:
+        usage()
+
+    action = sys.argv[1].lower()
+    target = sys.argv[2]
+    reason = " ".join(sys.argv[3:]) if len(sys.argv) > 3 else ""
+
+    if action not in ["shutdown", "reboot", "block-net", "unblock-net", "nuke"]:
+        print(f"[claction] unsupported action: {action}")
+        usage()
+
+    clients = load_clients()
+    ip, key = resolve_target(target, clients)
+    if not ip or not key:
+        sys.exit(1)
+
+    url = f"http://{ip}:{DEFAULT_PORT}/api/action"
+    payload = {
+        "action": action,
+        "reason": reason,
+        "requested_by": socket.gethostname(),
+    }
+
+    headers = {
+        "Content-Type": "application/json",
+        "X-ACTION-KEY": key,
+    }
+
+    print(f"[claction] sending {action} to {target} ({ip})")
+    try:
+        r = requests.post(url, headers=headers, json=payload, timeout=TIMEOUT)
+        print(f"[claction] status: {r.status_code}")
+        try:
+            print(r.json())
+        except Exception:
+            print(r.text)
+    except Exception as e:
+        print(f"[claction] request failed: {e}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

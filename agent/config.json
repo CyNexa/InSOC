@@ -2,7 +2,13 @@
   "backend_url": "http://localhost:3000",
   "api_key": "suka_blyat_123",
   "server_agent": {
-    "logs_dir": "/var/log",
+    "logs_dir": "/var/log", 
+    "log_files": [
+      "/var/log/syslog",
+      "/var/log/auth.log",
+      "/var/log/nginx/access.log",
+      "/var/log/nginx/error.log"
+    ],
     "state_file": "server_agent_state.json",
     "poll_interval_seconds": 3,
     "host": "server-1",

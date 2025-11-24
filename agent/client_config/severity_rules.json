@@ -1,0 +1,30 @@
+{
+  "CRITICAL": [
+    "sql injection",
+    "drop table",
+    "rm -rf /",
+    "failed password for root",
+    "multiple failed logins",
+    "segmentation fault"
+  ],
+  "HIGH": [
+    "failed password",
+    "unauthorized",
+    "denied",
+    "forbidden",
+    "xss",
+    "csrf",
+    "permission denied"
+  ],
+  "MEDIUM": [
+    "error",
+    "exception",
+    "timeout",
+    "disconnected",
+    "retrying"
+  ],
+  "LOW": [
+    "warn",
+    "deprecated"
+  ]
+}
