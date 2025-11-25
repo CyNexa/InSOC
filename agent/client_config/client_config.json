@@ -2,22 +2,20 @@
   "backend_url": "http://YOUR_SERVER_IP:3000",
   "api_key": "YOUR_AGENT_API_KEY",
   "client_agent": {
-    "host": "client-1",
+    "host": "client-number",
     "source_name": "client-logs",
     "log_files": [
       "/var/log/syslog",
-      "/var/log/auth.log",
-      "/var/log/kern.log"
+      "/var/log/auth.log"
     ],
     "bash_history_globs": [
       "/root/.bash_history",
       "/home/*/.bash_history"
     ],
-    "state_file": "/var/lib/insoc/client_agent_state.json",
+    "state_file": "/opt/insoc-client/client_agent_state.json",
     "poll_interval_seconds": 5,
     "control_listen": "0.0.0.0",
     "control_port": 5050,
-    "action_key": "SUPER_SECRET_PER_CLIENT",
     "anti_tamper_enabled": true,
     "anti_tamper_interval_seconds": 15
   }

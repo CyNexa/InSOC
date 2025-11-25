@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+
+# Not for production use.
+# STILL UNDER DEVELOPMENT.
+
 import os
 import time
 import sqlite3

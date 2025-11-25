@@ -1,8 +1,3 @@
-⚠ CLIENT CONFIGURATION ISNT MENTIONED YET 
-
-
-
-
 ⚠ NOTE: THIS IS STILL IN DEVELOPMENT PHASE & MAIN FEATURES WILL BE ADDED SOON.  
 ⚠ NOTE: RUN ON UBUNTU SERVER ONLY.
 
@@ -96,10 +91,14 @@ InSOC/
 │    ├── package-lock.json
 │
 ├── agent/
-│    ├── client_agent.py
+│    ├── client_config/
+│    │    ├── client_agent.py
+│    │    ├── client_config.py         // Main Client Config
+│    │    ├── insoc-client.json
+│    │    └── severity_rules.json
 │    ├── server_agent.py
-│    ├── firewall_agent.py
-│    ├── config.json
+│    ├── firewall_agent.py             // Work in progress
+│    ├── config.json                   // Main Server Config
 │    ├── severity_rules.json
 │ 
 ├── setup.sh -- ⚠ Only Run Once For Setup
@@ -122,39 +121,71 @@ AGENT_API_KEY=abc123
 
 ```
 
-### config.json
-
-```
-{
-  "backend_url": "http://localhost:3000",
-  "api_key": "abc123",
-  .
-  .
-  .
-  "db_path": "../backend/data/soc.db"
-}
-
-```
-
-## Setup Process
-
+## Server Setup
+### Automatic
 ```
 cd InSOC
 chmod 777 setup.sh
 ./setup.sh
 ```
 
-## Starting InSOC
+### Manual
+```
+sudo apt update
+sudo apt install -y python3
+sudo apt install -y python3-pip
+sudo apt install -y python3-venv
+sudo apt install -y nodejs
+sudo apt install -y npm
+```
+```
+cd agent
+python3 -m venv venv
+pip3 install requests -y
+```
+```
+cd backend
+npm install
+```
+
+## Client Setup
+1. Move `clinet_agent.py`, `client_config.json`, `severity_rules.json` to `/opt/insoc-client/`
+2. Move `insoc-client.service` to `/etc/systemd/system/`
 
 ```
-cd logmonitor
+// Note: This is automation of upper text instructioned work.
+
+cd client_config
+
+sudo mv clinet_agent.py /opt/insoc-client/
+sudo mv client_config.json /opt/insoc-client/
+sudo mv severity_rules.json /opt/insoc-client/
+
+sudo mv insoc-client.service /etc/systemd/system/
+```
+```
+sudo systemctl reload-daemon
+sudo systemctl enable insoc-client.service
+```
+
+## Starting InSOC
+### Server
+```
+cd InSOC
 ./start.sh
+```
+### Client
+```
+sudo systemctl start insoc-client.service
+sudo systemctl status insoc-client.service
+
+// The "Client Log Agent(service)" once started it runs all time and auto starts at restart
 ```
 
 ## Security Notes
 
 * Command logging may reveal sensitive data; configure filters properly.
-* Use `SESSION_SECRET=`  `AGENT_API_KEY=` for protected endpoints.
+* Use `AGENT_API_KEY=` for protected endpoints.
 * Restrict backend binding to local network if exposed.
 
 
@@ -167,4 +198,4 @@ THIS SOC SYSTEM IS BUILT FOR PERSONAL, LOCAL, AND EDUCATIONAL USE ONLY.
 ALL LOGS STAY ON YOUR MACHINE UNLESS YOU EXPLICITLY CONFIGURE OTHERWISE.  
 THE SYSTEM ONLY COLLECTS DATA FROM LOG FILES YOU MANUALLY SPECIFY AND CONTAINS NO HIDDEN DATA CAPTURE, NO EXTERNAL UPLOADS, AND NO SURVEILLANCE FEATURES.  
 COMMAND LOGGING IS OPTIONAL AND DISABLED BY DEFAULT, AS IT MAY CONTAIN SENSITIVE INFORMATION.  
-THIS TOOL IS NOT INTENDED TO MONITOR OTHER USERS WITHOUT CONSENT AND EXISTS SOLELY TO HELP YOU AUDIT, SECURE, AND UNDERSTAND **YOUR OWN SYSTEMS** IN A SAFE AND TRANSPARENT WAY.  
+THIS TOOL IS NOT INTENDED TO MONITOR OTHER USERS WITHOUT CONSENT AND EXISTS SOLELY TO HELP YOU AUDIT, SECURE, AND UNDERSTAND **YOUR OWN SYSTEMS** IN A SAFE AND TRANSPARENT WAY.
