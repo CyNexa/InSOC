@@ -1,0 +1,13 @@
+# /etc/systemd/system/insoc-client.service
+[Unit]
+Description=InSOC Client Agent
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/insoc-client
+ExecStart=/opt/insoc-client/venv/bin/python3 /opt/insoc-client/client_agent.py
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target

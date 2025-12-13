@@ -1,0 +1,27 @@
+{
+  "backend_url": "http://localhost:3000",
+  "api_key": "suka_blyat_123",
+  "server_agent": {
+    "logs_dir": "/var/log", 
+    "log_files": [
+      "/var/log/syslog",
+      "/var/log/auth.log"
+    ],
+    "state_file": "server_agent_state.json",
+    "poll_interval_seconds": 3,
+    "host": "server-1",
+    "source_name": "server-logs"
+  },
+  "client_agent": {
+    "logs_files": [
+      "/var/log/syslog"
+    ],
+    "bash_history_path": "/home/ubuntu/.bash_history",
+    "state_file": "client_agent_state.json",
+    "poll_interval_seconds": 5,
+    "host": "client-1",
+    "source_name": "client-logs",
+    "user": "ubuntu"
+  },
+  "db_path": "../backend/data/soc.db"
+}

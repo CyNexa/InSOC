@@ -1,0 +1,102 @@
+<%- include('layout', {
+  title: 'Dashboard',
+  user: user,
+  body: `
+  <section class="space-y-6">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-semibold text-slate-50">Dashboard</h1>
+        <p class="text-sm text-slate-400 mt-1">
+          Live view of all server & client activity.
+        </p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div class="rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+        <p class="text-xs uppercase tracking-wide text-slate-400 mb-1">Total Logs</p>
+        <p class="text-3xl font-semibold text-slate-50">${total}</p>
+      </div>
+
+      <div class="rounded-xl border border-slate-800 bg-slate-900/70 p-4 sm:col-span-2">
+        <p class="text-xs uppercase tracking-wide text-slate-400 mb-2">By Severity</p>
+        <div class="flex flex-wrap gap-2">
+          ${bySeverity
+            .map(
+              s =>
+                `<span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-slate-800 text-slate-100">
+                  <span class="mr-2 inline-block h-2 w-2 rounded-full ${
+                    s.severity === 'CRITICAL'
+                      ? 'bg-red-500'
+                      : s.severity === 'HIGH'
+                      ? 'bg-orange-500'
+                      : s.severity === 'MEDIUM'
+                      ? 'bg-amber-400'
+                      : s.severity === 'LOW'
+                      ? 'bg-sky-400'
+                      : 'bg-slate-400'
+                  }"></span>
+                  ${s.severity}: ${s.c}
+                </span>`
+            )
+            .join("")}
+        </div>
+      </div>
+    </div>
+
+    <div class="rounded-xl border border-slate-800 bg-slate-900/70">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+        <h2 class="text-sm font-medium text-slate-100">Recent Logs (All)</h2>
+        <span class="text-xs text-slate-500">Latest 100 entries (newest on top)</span>
+      </div>
+      <div class="overflow-x-auto">
+        <div class="scroll-y hgt-dashboard">
+          <table class="min-w-full text-sm text-left">
+            <thead class="bg-slate-900/90">
+              <tr class="border-b border-slate-800 text-xs text-slate-400">
+                <th class="px-3 py-2 whitespace-nowrap">Time (IST)</th>
+                <th class="px-3 py-2 whitespace-nowrap">Source</th>
+                <th class="px-3 py-2 whitespace-nowrap">Host</th>
+                <th class="px-3 py-2 whitespace-nowrap">Severity</th>
+                <th class="px-3 py-2">Message</th>
+              </tr>
+            </thead>
+            <tbody id="dashboard-logs-body" class="divide-y divide-slate-800">
+              ${recentLogs
+                .map(l => {
+                  const t = toISTString(l.timestamp);
+                  const msg = (l.message || "").slice(0, 120);
+                  const sevClass =
+                    l.severity === 'CRITICAL' ? 'bg-red-500/20 text-red-300 border border-red-500/40' :
+                    l.severity === 'HIGH'     ? 'bg-orange-500/20 text-orange-300 border border-orange-500/40' :
+                    l.severity === 'MEDIUM'   ? 'bg-amber-500/20 text-amber-200 border border-amber-500/40' :
+                    l.severity === 'LOW'      ? 'bg-sky-500/20 text-sky-200 border border-sky-500/40' :
+                                                'bg-slate-800 text-slate-200 border border-slate-700/60';
+
+                  return `
+                    <tr data-id="${l.id}" class="hover:bg-slate-800/70 transition-colors">
+                      <td class="px-3 py-2 text-xs text-slate-300 whitespace-nowrap">${t}</td>
+                      <td class="px-3 py-2 text-xs uppercase tracking-wide text-slate-400 whitespace-nowrap">${l.source_type}</td>
+                      <td class="px-3 py-2 text-xs text-slate-300 whitespace-nowrap">${l.host || ""}</td>
+                      <td class="px-3 py-2 whitespace-nowrap">
+                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${sevClass}">
+                          ${l.severity}
+                        </span>
+                      </td>
+                      <td class="px-3 py-2 text-xs text-slate-200">
+                        <span title="${l.message}">${msg}</span>
+                      </td>
+                    </tr>
+                  `;
+                })
+                .join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script src="/js/dashboard.js"></script>
+  `
+}) %>
